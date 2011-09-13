@@ -1,11 +1,4 @@
-import java.io.File;
-import java.io.FileOutputStream;
-
-import com.lowagie.text.pdf.RandomAccessFileOrArray;
-import com.lowagie.text.pdf.codec.TiffImage;
-import com.lowagie.text.Image;
-import com.lowagie.text.pdf.PdfWriter;
-import com.lowagie.text.Document;
+import java.io.*;
 
 
 public class Tiff2Pdf {
@@ -13,67 +6,41 @@ public class Tiff2Pdf {
 
     public static void main(String[] args) {
 	
-	int convert = convertTiff("tiff_spool/fax.tiff", "pdf_spool");
-	int move = archiveTiff("tiff_spool/fax.tiff", "tiff_archive");
-
-	if (move != 0) {
-	    
-	    System.out.println("File was not successfully moved! ");
-
-	}
-	    
     }
     
-    
-    public static int convertTiff(String N_tiff_file, String N_pdf_spool_dir) {
-	
-	try {
 
-	    RandomAccessFileOrArray tiff_file = new RandomAccessFileOrArray(N_tiff_file);
-	    
-	    int pages = TiffImage.getNumberOfPages(tiff_file);
-	    
-	    Document pdf_file = new Document();
-	    
-	    PdfWriter.getInstance(pdf_file, new FileOutputStream(String.format("%s/%s", N_pdf_spool_dir, N_tiff_file)));
-	    
-	    pdf_file.open();
-	    
-	    for(int i = 1; i <= pages; i++) {
-		Image temp_image = TiffImage.getTiffImage(tiff_file, i);
-		pdf_file.add(temp_image);
-	    }
-	    
-	    pdf_file.close();
-	}
+    /**
+     *
+     * @param dir Path to directory to be listed
+     * @return Array of strings with directory contents on success,
+     *         null otherwise
+     */
+    public static String[] listDir(String dir_path) {
 	
-	catch (Exception i1) {
-	    
-	    System.out.println("ERROR");
-	    return 1;
-	    
-	}
-	
-	return 0;
-	
+	File dir = new File(dir_path);
+
+	return dir.list();
+
     }
-    
-    
-    public static int archiveTiff(String N_tiff_file, String N_tiff_archive_dir) {
+
+
+    /**
+     *
+     * @param src Path to source file (file to be archived)
+     * @param dst Path to destination directory (archive directory)
+     * @return true on success, false otherwise
+     */
+    public static boolean archive(String src_path, String dst_path) {
 	
-	File tiff_file = new File(N_tiff_file);
+	File src = new File(src_path);
+	File dst = new File(dst_path);
 	
-	File tiff_archive_dir = new File(N_tiff_archive_dir);
+	boolean success = src.renameTo(new File(dst, src.getName()));
 	
-	boolean success = tiff_file.renameTo(new File(tiff_archive_dir, tiff_file.getName()));
+	if (!success)
+	    return false;
 	
-	if (!success) {
-	    
-	    return 1;
-	    
-	}
-	
-	return 0;
+	return true;
 	
     }
     
