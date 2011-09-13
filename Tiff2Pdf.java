@@ -1,11 +1,25 @@
 import java.io.*;
 
+import com.lowagie.text.pdf.RandomAccessFileOrArray;
+import com.lowagie.text.pdf.codec.TiffImage;
+import com.lowagie.text.Image;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.pdf.PdfWriter;
+import com.lowagie.text.Document;
+
 
 public class Tiff2Pdf {
 
 
     public static void main(String[] args) {
 	
+	boolean success = tiff2pdf("tiff_spool/fax.tiff", "pdf_spool");
+
+	if (success)
+	    System.out.println("Yes!");
+	else
+	    System.out.println("No!");	    
+
     }
     
 
@@ -26,8 +40,42 @@ public class Tiff2Pdf {
 
     /**
      *
-     * @param src Path to source file (file to be archived)
-     * @param dst Path to destination directory (archive directory)
+     * @param src_path Path to TIFF file to be converted
+     * @param dst_path Path to destination directory
+     * @return true on success, false otherwise
+     */
+    public static boolean tiff2pdf(String src_path, String dst_path) {
+	
+	try {
+
+	    RandomAccessFileOrArray src = new RandomAccessFileOrArray(src_path);
+	    int number_of_pages = TiffImage.getNumberOfPages(src);
+	    Document dst = new Document();
+	    dst.setPageSize(PageSize.A1);
+	    PdfWriter.getInstance(dst, new FileOutputStream(dst_path + "/output.pdf"));
+	    dst.open();
+	    
+	    for (int i = 1; i <= number_of_pages; i++) {
+		Image temp = TiffImage.getTiffImage(src, i);
+		dst.add(temp);
+	    }
+	    
+	    dst.close();
+	}
+	
+	catch (Exception i1) {
+	    return false;
+	}
+
+	return true;
+
+    }
+
+
+    /**
+     *
+     * @param src_path Path to file to be archived
+     * @param dst_path Path to archive destination directory
      * @return true on success, false otherwise
      */
     public static boolean archive(String src_path, String dst_path) {
