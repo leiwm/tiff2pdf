@@ -1,4 +1,5 @@
 import java.io.*;
+import java.util.regex.*;
 
 import com.lowagie.text.pdf.RandomAccessFileOrArray;
 import com.lowagie.text.pdf.codec.TiffImage;
@@ -13,12 +14,20 @@ public class Tiff2Pdf {
 
     public static void main(String[] args) {
 	
-	boolean success = tiff2pdf("tiff_spool/fax.tiff", "pdf_spool");
+	File tiff_spool = new File("/home/jromero/Desktop/tiff2pdf/tiff_spool");
+	File tiff_archive = new File("/home/jromero/Desktop/tiff2pdf/tiff_archive");
+	File pdf_spool = new File("/home/jromero/Desktop/tiff2pdf/pdf_spool");
 
-	if (success)
-	    System.out.println("Yes!");
-	else
-	    System.out.println("No!");	    
+	String[] tiff_files = listDir(tiff_spool.getPath());
+	for (String tiff_file : tiff_files) {
+	    
+	    if (tiff2Pdf(new File(tiff_spool, tiff_file), pdf_spool)) {
+
+		archive(new File(tiff_spool, tiff_file), tiff_archive);
+
+	    }
+
+	}
 
     }
     
@@ -40,55 +49,80 @@ public class Tiff2Pdf {
 
     /**
      *
-     * @param src_path Path to TIFF file to be converted
-     * @param dst_path Path to destination directory
+     * @param src Path to TIFF file to be converted
+     * @param dst Path to destination directory
      * @return true on success, false otherwise
      */
-    public static boolean tiff2pdf(String src_path, String dst_path) {
+    public static boolean tiff2Pdf(File src, File dst) {
 	
-	try {
-
-	    RandomAccessFileOrArray src = new RandomAccessFileOrArray(src_path);
-	    int number_of_pages = TiffImage.getNumberOfPages(src);
-	    Document dst = new Document();
-	    dst.setPageSize(PageSize.A1);
-	    PdfWriter.getInstance(dst, new FileOutputStream(dst_path + "/output.pdf"));
-	    dst.open();
+	Pattern pattern = Pattern.compile("(.*).tiff");
+	Matcher matcher = pattern.matcher(src.getName());
+	boolean match_found = matcher.find();
+	
+	// Check if src is a TIFF file
+	if (match_found) {
 	    
-	    for (int i = 1; i <= number_of_pages; i++) {
-		Image temp = TiffImage.getTiffImage(src, i);
-		dst.add(temp);
+	    // Keep name, change extension to .pdf
+	    String pdf_name = matcher.group(1) + ".pdf";
+	    
+	    try {
+		
+		// Reading TIFF file
+		RandomAccessFileOrArray tiff_file = new RandomAccessFileOrArray(src.getPath());
+		// Getting number of pages of TIFF file
+		int pages = TiffImage.getNumberOfPages(tiff_file);
+		
+		// Creating PDF file
+		Document pdf_file = new Document(PageSize.A1);
+		
+		PdfWriter.getInstance(pdf_file,
+				      new FileOutputStream(new File(dst.getPath(), pdf_name)));
+		
+		// Open PDF file
+		pdf_file.open();
+		
+		// Write PDF file page by page
+		for (int page = 1; page <= pages; page++) {
+		    Image temp = TiffImage.getTiffImage(tiff_file, page);
+		    pdf_file.add(temp);
+		}
+		
+		// Close PDF file
+		pdf_file.close();
+		
 	    }
 	    
-	    dst.close();
+	    catch (Exception i1) {
+		return false;
+	    }
+	    
+	    return true;
+	
 	}
 	
-	catch (Exception i1) {
+	else {
+	    
 	    return false;
+	    
 	}
-
-	return true;
-
+	
     }
-
+    
 
     /**
      *
-     * @param src_path Path to file to be archived
-     * @param dst_path Path to archive destination directory
+     * @param src Path to file to be archived
+     * @param dst Path to archive directory
      * @return true on success, false otherwise
      */
-    public static boolean archive(String src_path, String dst_path) {
-	
-	File src = new File(src_path);
-	File dst = new File(dst_path);
+    public static boolean archive(File src, File dst) {
 	
 	boolean success = src.renameTo(new File(dst, src.getName()));
 	
-	if (!success)
+	if (success)
+	    return true;
+	else
 	    return false;
-	
-	return true;
 	
     }
     
