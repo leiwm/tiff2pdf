@@ -1,5 +1,7 @@
 import java.io.*;
 import java.util.regex.*;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 import com.lowagie.text.pdf.RandomAccessFileOrArray;
 import com.lowagie.text.pdf.codec.TiffImage;
@@ -14,37 +16,62 @@ public class Tiff2Pdf {
 
     public static void main(String[] args) {
 	
+	/* Code just meant to test class methods */
+
 	File tiff_spool = new File("/home/jromero/Desktop/tiff2pdf/tiff_spool");
 	File tiff_archive = new File("/home/jromero/Desktop/tiff2pdf/tiff_archive");
 	File pdf_spool = new File("/home/jromero/Desktop/tiff2pdf/pdf_spool");
-
-	String[] tiff_files = listDir(tiff_spool.getPath());
-	for (String tiff_file : tiff_files) {
+	
+	ArrayList tiff_files = listDir(tiff_spool);
+	Iterator iterator = tiff_files.iterator();
+	
+	try {
 	    
-	    if (tiff2Pdf(new File(tiff_spool, tiff_file), pdf_spool)) {
-
-		archive(new File(tiff_spool, tiff_file), tiff_archive);
-
-	    }
-
-	}
-
-    }
+	    while (iterator.hasNext()) {
+		
+		File current_file = (File) iterator.next();
+		
+		if (tiff2Pdf(new File(tiff_spool, current_file.toString()), pdf_spool)) {
+		
+		    archive(new File(tiff_spool, current_file.toString()), tiff_archive);
+		    
+		} // closes if
+		
+	    } // closes while
+	    
+	} // closes try
+	
+	catch (Exception ex) {
+	    
+	    return;
+	    
+	} // closes catch
+	
+    } // closes method
     
 
     /**
      *
-     * @param dir Path to directory to be listed
-     * @return Array of strings with directory contents on success,
-     *         null otherwise
+     * @param directory Path to directory to be listed
+     * @return ArrayList of File instances
      */
-    public static String[] listDir(String dir_path) {
+    public static ArrayList listDir(File directory) {
 	
-	File dir = new File(dir_path);
+	ArrayList<File> files = new ArrayList<File>();
+	
+	if (directory.isDirectory()) {
+	    
+	    for (String file_name : directory.list()) {
+		
+		files.add(new File(file_name));
+		
+	    } // closes for
+	    
+	} // closes if
+	
+	return files;
 
-	return dir.list();
-
-    }
+    } // closes method
 
 
     /**
@@ -66,18 +93,19 @@ public class Tiff2Pdf {
 	    String pdf_name = matcher.group(1) + ".pdf";
 	    
 	    try {
-		
-		// Reading TIFF file
+
+		// Read TIFF file
 		RandomAccessFileOrArray tiff_file = new RandomAccessFileOrArray(src.getPath());
-		// Getting number of pages of TIFF file
+
+		// Get number of pages of TIFF file
 		int pages = TiffImage.getNumberOfPages(tiff_file);
-		
-		// Creating PDF file
+
+		// Create PDF file
 		Document pdf_file = new Document(PageSize.A1);
-		
+
 		PdfWriter.getInstance(pdf_file,
-				      new FileOutputStream(new File(dst.getPath(), pdf_name)));
-		
+				      new FileOutputStream(new File(dst, pdf_name)));
+
 		// Open PDF file
 		pdf_file.open();
 		
@@ -85,28 +113,28 @@ public class Tiff2Pdf {
 		for (int page = 1; page <= pages; page++) {
 		    Image temp = TiffImage.getTiffImage(tiff_file, page);
 		    pdf_file.add(temp);
-		}
+		} // closes for
 		
 		// Close PDF file
 		pdf_file.close();
 		
-	    }
+	    } // closes try
 	    
-	    catch (Exception i1) {
+	    catch (Exception ex) {
 		return false;
-	    }
+	    } // closes catch
 	    
 	    return true;
-	
-	}
+	    
+	} // closes if
 	
 	else {
 	    
 	    return false;
 	    
-	}
+	} // closes else
 	
-    }
+    } // closes method
     
 
     /**
@@ -117,14 +145,19 @@ public class Tiff2Pdf {
      */
     public static boolean archive(File src, File dst) {
 	
-	boolean success = src.renameTo(new File(dst, src.getName()));
+	boolean success = false;
 	
-	if (success)
-	    return true;
-	else
-	    return false;
+	try {
+	    success = src.renameTo(new File(dst, src.getName()));
+	} // closes try
 	
-    }
-    
+	catch(NullPointerException ex) {
+	    success =  false;
+	} // closes catch
+
+	return success;
+
+    } // closes method
+
 
 }
