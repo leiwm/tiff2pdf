@@ -5,6 +5,8 @@ import java.util.Iterator;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
+import javax.activation.MimetypesFileTypeMap;
+
 import com.lowagie.text.pdf.RandomAccessFileOrArray;
 import com.lowagie.text.pdf.codec.TiffImage;
 import com.lowagie.text.Image;
@@ -14,6 +16,23 @@ import com.lowagie.text.Document;
 
 
 public class Tiff2Pdf {
+
+    public static void main(String[] args) {
+	
+	File tiff = new File("fax.tiff");
+	File pdf = new File("fax.pdf");
+	
+	MimetypesFileTypeMap mimeTypes = new MimetypesFileTypeMap();
+	mimeTypes.addMimeTypes("application/pdf pdf PDF");
+
+	System.out.println("Mime Type of " + tiff.getName() + " is " +
+			   mimeTypes.getContentType(tiff));
+
+	System.out.println("Mime Type of " + pdf.getName() + " is " +
+			   mimeTypes.getContentType(pdf));
+
+    }
+
 
     /**
      *
