@@ -15,34 +15,6 @@ import com.lowagie.text.Document;
 
 public class Tiff2Pdf {
 
-
-    public static void main(String[] args) {
-	
-	/* Code just meant to test Tiff2Pdf methods */
-
-	File tiff_spool = new File("/home/jromero/Desktop/tiff2pdf/tiff_spool");
-	File tiff_archive = new File("/home/jromero/Desktop/tiff2pdf/tiff_archive");
-	File pdf_spool = new File("/home/jromero/Desktop/tiff2pdf/pdf_spool");
-	
-	ArrayList tiff_files = listDir(tiff_spool);
-	Iterator iterator = tiff_files.iterator();
-	
-	try {
-	    
-	    while (iterator.hasNext()) {
-		File current_file = (File) iterator.next();
-		if (tiff2Pdf(new File(tiff_spool, current_file.toString()), pdf_spool)) {
-		    archive(new File(tiff_spool, current_file.toString()), tiff_archive);
-		}
-	    }
-	}
-	catch (Exception ex) {
-	    return;
-	}
-	
-    }
-    
-
     /**
      *
      * @param directory Path to directory to be listed
@@ -57,16 +29,15 @@ public class Tiff2Pdf {
 		files.add(new File(file_name));
 	    }
 	}
-	
+
 	return files;
-	
     }
 
 
     /**
      *
-     * @param src Path to TIFF file to be converted
-     * @param dst Path to destination directory
+     * @param src Abstraction of TIFF file to be converted
+     * @param dst Abstraction of destination directory
      * @return true on success, false otherwise
      */
     public static boolean tiff2Pdf(File src, File dst) {
@@ -117,9 +88,67 @@ public class Tiff2Pdf {
 	else {
 	    return false;
 	}
-	
     }
-    
+
+
+    /**
+     *
+     * Added to FaxRx class
+     *
+     * @param tiffFile Abstraction of TIFF file to be converted
+     * @return Abstraction of PDF file on success, null otherwise
+     */
+    public static File tiff2Pdf(File tiffFile) {
+	
+	Pattern pattern = Pattern.compile("(.*).tiff");
+	Matcher matcher = pattern.matcher(tiffFile.getName());
+	boolean matchFound = matcher.find();
+	
+	// check if tiffFile is actually a TIFF file, just in case
+	if (matchFound) {
+	    
+	    File pdfFile = new File(System.getProperty("java.io.tmpdir"), matcher.group(1) + ".pdf");
+	    
+	    try {
+
+		// read TIFF file
+		RandomAccessFileOrArray tiff = new RandomAccessFileOrArray(tiffFile.getAbsolutePath());
+
+		// get number of pages of TIFF file
+		int pages = TiffImage.getNumberOfPages(tiff);
+
+		// create PDF file
+		Document pdf = new Document(PageSize.LETTER);
+		
+		// default tmp-file directory
+		PdfWriter.getInstance(pdf, new FileOutputStream(pdfFile));
+
+		// open PDF filex
+		pdf.open();
+		
+		// write PDF file page by page
+		for (int page = 1; page <= pages; page++) {
+		    Image temp = TiffImage.getTiffImage(tiff, page);
+		    pdf.add(temp);
+		}
+		
+		// close PDF file
+		pdf.close();
+	    }
+
+	    catch (Exception e) {
+		e.printStackTrace();		
+		return null;
+	    }
+	    
+	    return pdfFile;
+	}
+	
+	else {
+	    return null;
+	}
+    }
+
 
     /**
      *
@@ -139,11 +168,12 @@ public class Tiff2Pdf {
 	}
 
 	return success;
-
     }
     
 
     /**
+     *
+     * Added to FaxRx class
      *
      * @return current timestamp following yyyy-MM-dd-HH-mm-ss pattern
      */
@@ -152,6 +182,5 @@ public class Tiff2Pdf {
 	sdf.applyPattern("yyyy-MM-dd-HH-mm-ss");
 	return sdf.format(new Date());
     }
-
 
 }

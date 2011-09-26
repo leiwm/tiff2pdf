@@ -9,14 +9,16 @@
 
 package org.sipfoundry.faxrx;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.regex.*;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
@@ -31,6 +33,13 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
+
+import com.lowagie.text.pdf.RandomAccessFileOrArray;
+import com.lowagie.text.pdf.codec.TiffImage;
+import com.lowagie.text.Image;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.pdf.PdfWriter;
+import com.lowagie.text.Document;
 
 import org.apache.log4j.Logger;
 import org.sipfoundry.commons.freeswitch.FaxReceive;
@@ -177,6 +186,7 @@ public class FaxRx {
 
     private void receive() {
         File faxPathName = null;
+	File emailAttachment = null;
         FaxReceive faxReceive = null;
         String faxInfo;
 
@@ -192,19 +202,32 @@ public class FaxRx {
         m_mailbox = new Mailbox(user);
 
         try {
-            faxPathName = File.createTempFile("fax_", ".tiff");
+            faxPathName = File.createTempFile("fax_" + timestamp() + "_", ".tiff");
             new Set(m_fses, "fax_enable_t38_request", "true").go();
             new Set(m_fses, "fax_enable_t38", "true").go();
             faxReceive = new FaxReceive(m_fses, faxPathName.getAbsolutePath());
             faxReceive.go();
-
-        } catch (IOException e) {
+        } 
+	
+	catch (IOException e) {
             e.printStackTrace();
             return;
         }
 
-
         finally {
+
+	    // convert TIFF to PDF
+	    File converted = tiff2Pdf(faxPathName);
+	    if (converted != null) {
+		// if conversion is succesful attach the PDF file
+		emailAttachment = converted;
+		faxPathName.delete();
+	    }
+	    else {
+		// if conversion is not succesful attach the TIFF file
+		emailAttachment = faxPathName;
+		LOG.error("Fax Receive: Could not convert TIFF to PDF. TIFF will be attached");
+	    }
 
             // construct a reasonable faxInfo string to be used as part of the email
             // subject and instant message. Send email even if faxReceive.rxSuccess() false
@@ -245,12 +268,12 @@ public class FaxRx {
             String faxSubject = emf.fmt("Your") + " " + faxInfo;
 
             if (user.getEmailFormat() != EmailFormats.FORMAT_NONE) {
-                sendEmail(user.getEmailAddress(), faxPathName, emf, faxSubject);
+                sendEmail(user.getEmailAddress(), emailAttachment, emf, faxSubject);
                 sent = true;
             }
 
             if (user.getAltEmailFormat() != EmailFormats.FORMAT_NONE) {
-                sendEmail(user.getAltEmailAddress(), faxPathName, emf, faxSubject);
+                sendEmail(user.getAltEmailAddress(), emailAttachment, emf, faxSubject);
                 sent = true;
             }
 
@@ -258,7 +281,7 @@ public class FaxRx {
 
             if (!sent) {
                 if (user.getEmailAddress() != null) {
-                    sendEmail(user.getEmailAddress(), faxPathName, emf, faxSubject);
+                    sendEmail(user.getEmailAddress(), emailAttachment, emf, faxSubject);
                     sent = true;
                 }
             }
@@ -266,7 +289,7 @@ public class FaxRx {
             if (!sent) {
                 // need to send to at least one email address so let's be even more aggressive
                 if (user.getAltEmailAddress() != null) {
-                    sendEmail(user.getAltEmailAddress(), faxPathName, emf, faxSubject);
+                    sendEmail(user.getAltEmailAddress(), emailAttachment, emf, faxSubject);
                 } else {
                     // didn't send anywhere !!
                     LOG.error("Fax Receive: No email address for user " + user.getUserName());
@@ -283,7 +306,65 @@ public class FaxRx {
                 sendIM(user, emf.fmt("You_received_an_incomplete") + " " + faxInfo + ".");
             }
 
-            faxPathName.delete();
+            emailAttachment.delete();
         }
     }
+
+    private File tiff2Pdf(File tiffFile) {
+	
+	Pattern pattern = Pattern.compile("(.*).tiff");
+	Matcher matcher = pattern.matcher(tiffFile.getName());
+	boolean matchFound = matcher.find();
+	
+	// check if tiffFile is actually a TIFF file, just in case
+	if (matchFound) {
+	    
+	    File pdfFile = new File(System.getProperty("java.io.tmpdir"), matcher.group(1) + ".pdf");
+	    
+	    try {
+
+		// read TIFF file
+		RandomAccessFileOrArray tiff = new RandomAccessFileOrArray(tiffFile.getAbsolutePath());
+
+		// get number of pages of TIFF file
+		int pages = TiffImage.getNumberOfPages(tiff);
+
+		// create PDF file
+		Document pdf = new Document(PageSize.LETTER);
+		
+		// default tmp-file directory
+		PdfWriter.getInstance(pdf, new FileOutputStream(pdfFile));
+
+		// open PDF filex
+		pdf.open();
+		
+		// write PDF file page by page
+		for (int page = 1; page <= pages; page++) {
+		    Image temp = TiffImage.getTiffImage(tiff, page);
+		    pdf.add(temp);
+		}
+		
+		// close PDF file
+		pdf.close();
+	    }
+
+	    catch (Exception e) {
+		e.printStackTrace();		
+		return null;
+	    }
+	    
+	    return pdfFile;
+	}
+	
+	else {
+	    return null;
+	}
+    }
+
+    private String timestamp() {
+	SimpleDateFormat sdf = new SimpleDateFormat();
+	sdf.applyPattern("yyyy-MM-dd-HH-mm-ss");
+	return sdf.format(new Date());
+    }
+
 }
