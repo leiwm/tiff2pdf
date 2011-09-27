@@ -23,6 +23,7 @@ import java.text.SimpleDateFormat;
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
 import javax.activation.FileDataSource;
+import javax.activation.MimetypesFileTypeMap;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
 import javax.mail.Part;
@@ -136,7 +137,7 @@ public class FaxRx {
         }
     }
 
-    private void sendEmail(String emailAddr, File tiffFile, EmailFormatter emf, String faxSubject) {
+    private void sendEmail(String emailAddr, File emailAttachment, EmailFormatter emf, String faxSubject) {
 
         if (emailAddr == null) {
             return;
@@ -158,14 +159,17 @@ public class FaxRx {
 
             MimeBodyPart faxBodyPart = new MimeBodyPart();
 
-            DataSource dataSource = new FileDataSource(tiffFile) {
+            DataSource dataSource = new FileDataSource(emailAttachment) {
                 public String getContentType() {
-                    return "image/tiff";
+		    MimetypesFileTypeMap mimeTypes = new MimetypesFileTypeMap();
+		    mimeTypes.addMimeTypes("image/tiff tiff TIFF");
+		    mimeTypes.addMimeTypes("application/pdf pdf PDF");
+		    return mimeTypes.getContentType(emailAttachment);
                 }
             };
 
             faxBodyPart.setDataHandler(new DataHandler(dataSource));
-            faxBodyPart.setFileName("fax-message.tiff");
+            faxBodyPart.setFileName(emailAttachment.getName());
             faxBodyPart.setHeader("Content-Transfer-Encoding", "base64");
             faxBodyPart.setDisposition(Part.ATTACHMENT);
 
@@ -319,6 +323,7 @@ public class FaxRx {
 	// check if tiffFile is actually a TIFF file, just in case
 	if (matchFound) {
 	    
+	    // located at default tmp-file directory
 	    File pdfFile = new File(System.getProperty("java.io.tmpdir"), matcher.group(1) + ".pdf");
 	    
 	    try {
@@ -332,7 +337,6 @@ public class FaxRx {
 		// create PDF file
 		Document pdf = new Document(PageSize.LETTER);
 		
-		// default tmp-file directory
 		PdfWriter.getInstance(pdf, new FileOutputStream(pdfFile));
 
 		// open PDF filex

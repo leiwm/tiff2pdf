@@ -17,23 +17,6 @@ import com.lowagie.text.Document;
 
 public class Tiff2Pdf {
 
-    public static void main(String[] args) {
-	
-	File tiff = new File("fax.tiff");
-	File pdf = new File("fax.pdf");
-	
-	MimetypesFileTypeMap mimeTypes = new MimetypesFileTypeMap();
-	mimeTypes.addMimeTypes("application/pdf pdf PDF");
-
-	System.out.println("Mime Type of " + tiff.getName() + " is " +
-			   mimeTypes.getContentType(tiff));
-
-	System.out.println("Mime Type of " + pdf.getName() + " is " +
-			   mimeTypes.getContentType(pdf));
-
-    }
-
-
     /**
      *
      * @param directory Path to directory to be listed
@@ -126,6 +109,7 @@ public class Tiff2Pdf {
 	// check if tiffFile is actually a TIFF file, just in case
 	if (matchFound) {
 	    
+	    // located at default tmp-file directory
 	    File pdfFile = new File(System.getProperty("java.io.tmpdir"), matcher.group(1) + ".pdf");
 	    
 	    try {
@@ -139,7 +123,6 @@ public class Tiff2Pdf {
 		// create PDF file
 		Document pdf = new Document(PageSize.LETTER);
 		
-		// default tmp-file directory
 		PdfWriter.getInstance(pdf, new FileOutputStream(pdfFile));
 
 		// open PDF filex
